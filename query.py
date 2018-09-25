@@ -105,7 +105,7 @@ class NeiAPI(Nei):
             bs = BeautifulSoup(self.driver.page_source, 'lxml')
             table = bs.table.find('table').prettify()
             df = pd.read_html(table, index_col=0, header=1)[0]
-            print('查询成功!')
+            print('查询成功！')
             return df
         except TimeoutException:
             print('查询失败！')
