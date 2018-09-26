@@ -91,6 +91,35 @@ def gen_item(*args):
     return sum([[x, f'{x}_mom', f'{x}_yoy'] for x in args], [])
 
 
+def rolling_rate():
+    df = rpt.nei.gongxiao(by='month', start=rpt.now, end=rpt.now, stat='按板块/片区', usg=SPZZ, item=['滚动一年供销比'], add='逐月')
+    rpt.data.update({'rolling_rate': round(df.loc['溧水'][0] / 100, 2)})
+
+
+def stock_speed():
+    df = rpt.nei.gongxiao(by='month', start=f'2017年{rpt.data["month"]+1:0>2d}月', end=rpt.now, stat='按板块/片区', usg=SPZZ,
+                          item=['已售面积', '已售套数'])
+    sold, sold_set = df.loc['溧水']
+
+    df = pd.read_excel('data.xlsx', '库存')
+    df['街道'] = df['街道'].str.strip()
+    df.set_index('街道', inplace=True)
+    stock, stock_set = df.loc['合计']
+
+    speed = round(stock / sold * 12, 2)
+    speed_set = round(stock_set / sold_set * 12, 2)
+
+    rpt.data.update({
+        'stock': f'{stock/1e4:.2f}',
+        'speed': speed,
+        'stock_set': int(stock_set),
+        'speed_set': speed_set
+    })
+
+    df.reindex(['永阳街道', '开发区', '石湫镇', '洪蓝镇', '白马镇', '和凤镇', '东屏镇', '晶桥镇', '合计'], inplace=True)
+    print((df['stock'] / 1e4).round(2))
+
+
 class Report:
 
     def __init__(self):
@@ -162,15 +191,22 @@ if __name__ == '__main__':
                     'price', 'price_yoy', 'money', 'money_yoy'], block='全市', cum=True)
     for usage in ['R_', 'V_']:
         rpt.query(item=['price'], usage=usage, cum=True)
+    rolling_rate()
 
     # 当年商办物业
     rpt.query(item=['sale', 'sale_yoy', 'sold', 'sold_yoy',
-                    'price', 'price_yoy', 'money', 'money_yoy'], cum=True)
+                    'price', 'price_yoy', 'money', 'money_yoy'], usage='CO_', cum=True)
 
     # 二手房
     rpt.ershou()
 
-    print(rpt.data)
+    # 库存
+    stock_speed()
+
+    # 商、办量价
+    for usage in ['C_', 'O_']:
+        rpt.query(item=gen_item('sale', 'sold', 'price'), usage=usage)
+
     # 输出到模板
     rpt.doc.merge(**rpt.data)
-    rpt.doc.write('d:/溧水月报.docx')
+    rpt.doc.write('output.docx')
